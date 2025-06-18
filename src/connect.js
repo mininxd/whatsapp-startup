@@ -4,6 +4,12 @@ import { fileURLToPath } from 'url';
 import qrcode from 'qrcode-terminal';
 import handleMessages from './handler/messages.js';
 import handleEvents from './handler/events.js';
+import { cleanSession } from './session.js';
+
+
+// try it, and contribute ;)
+// cleanSession();
+
 
 const {
   default: makeWASocket,
@@ -23,8 +29,7 @@ async function startSock() {
 
   const sock = makeWASocket({
     version,
-    auth: state,
-    printQRInTerminal: true
+    auth: state
   });
 
   sock.ev.on('creds.update', saveCreds);
