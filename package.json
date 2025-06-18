@@ -1,0 +1,24 @@
+{
+  "name": "whatsapp",
+  "version": "1.0.0",
+  "description": "Whatsapp bot startup",
+  "homepage": "https://github.com/mininxd/whatsapp-startup#readme",
+  "bugs": {
+    "url": "https://github.com/mininxd/whatsapp-startup/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mininxd/whatsapp-startup.git"
+  },
+  "license": "The Unlicense",
+  "author": "Mininxd",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "@whiskeysockets/baileys": "^6.7.18",
+    "qrcode-terminal": "^0.12.0"
+  }
+}
