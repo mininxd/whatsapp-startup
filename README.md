@@ -5,45 +5,6 @@ Built for clean structure, easy commands, and rapid prototyping.
 
 ---
 
-## Project Structure
-
-```
-/index.js              # Entry point
-/src/
-  connect.js           # Connects to WhatsApp & sets up events
-  handlers/
-    messages.js        # Handles incoming messages & runs all commands
-/commands/
-  ping.js              # Example user command (!ping)
-  /admin               
-/auth/                 # Stores your WhatsApp session (DO NOT SHARE!)
-```
-
----
-
-## How It Works
-
- **1. `connect.js`**
-
-- Connects to WhatsApp using Baileys.
-- Handles QR code generation.
-- Listens for connection updates.
-- Loads message handler.
-
-**2. `handlers/messages.js`**
-
-- Recursively loads **all** `.js` files in `/commands` and subfolders.
-- When a message arrives, runs **all commands** in order.
-- Each command decides on its own if it should act.
-
-**3. `/commands/`**
-
-- Each command file checks `if (text === '!yourcommand')` or regex.
-- Each file exports a single `default` async function.
-- Admin-only commands can check permissions inside their file.
-
----
-
 ## Quick Start
 
 1. **Install dependencies**
@@ -66,7 +27,7 @@ Built for clean structure, easy commands, and rapid prototyping.
 ## Adding Commands
 
 - To add a **user command**, create a `.js` in `/commands/`.
-- To add an **admin command**, put it in `/commands/admin/` (optional).
+- To add an **admin command**, put it in `/commands/admin/`
 
 **Example: `commands/ping.js`**
 ```js
