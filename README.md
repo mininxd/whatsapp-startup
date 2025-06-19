@@ -17,10 +17,11 @@ Built for clean structure, easy commands, and rapid prototyping.
    node index.js
    ```
 
-3. **Scan the QR code**
-   - The first time, a QR will show in your terminal.
-   - Scan it with your phone to link WhatsApp.
-   - Session data is saved in `/auth/` so you don't need to scan again next time.
+3. **Select Connection Type**
+   - On your first run, a prompt will appear in your terminal.
+   - Select the connection type using the up/down arrow keys, or enter the corresponding number.
+   - After selecting the connection type (either pairing or QR), follow the instructions displayed in the terminal.
+   - Session data is saved in `/auth/`, so you won't need to scan again next time.
 
 ---
 

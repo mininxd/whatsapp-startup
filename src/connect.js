@@ -84,6 +84,7 @@ async function startSock(restart = false) {
     if (qr) {
       if (!pairing) {
         qrcode.generate(qr, { small: true });
+        console.log("Open WhatsApp, then click the three dots > Linked devices > Link a device > Then scan the QR code above.");
       } else {
         // Remove console logs and set pino level to silent to avoid overwriting input text
         const {
@@ -112,6 +113,8 @@ async function startSock(restart = false) {
 
         // Request pairing code
         const code = await sock.requestPairingCode(phone);
+        console.log("Click the notification that appears on your Android/iOS device (where WhatsApp is installed).");
+        console.log("If no notification appears, open WhatsApp, then click the three dots > Linked devices > Link a device > Link with phone number instead, and enter the following pairing code:");
         console.log("[PAIRING] Code:", code?.match(/.{1,4}/g)?.join("-") || code);
       }
     }
