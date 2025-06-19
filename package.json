@@ -1,5 +1,7 @@
 {
+
   "name": "whatsapp",
+
   "version": "1.0.0",
   "description": "Whatsapp bot startup",
   "homepage": "https://github.com/mininxd/whatsapp-startup#readme",
@@ -10,7 +12,7 @@
     "type": "git",
     "url": "git+https://github.com/mininxd/whatsapp-startup.git"
   },
-  "license": "The Unlicense",
+  "license": "CC0-1.0 license",
   "author": "Mininxd",
   "type": "module",
   "main": "index.js",
