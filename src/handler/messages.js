@@ -27,9 +27,31 @@ for (const file of getAllCommandFiles(commandsDir)) {
 }
 
 export default function handleMessages(sock) {
+  sock.ev.removeAllListeners('messages.upsert'); 
+
   sock.ev.on('messages.upsert', async ({ messages }) => {
     const msg = messages[0];
-    if (!msg.message) return;
+    if (!msg?.message) return;
+
+    const isMessages = !!(
+      msg.message.conversation ||
+      msg.message.extendedTextMessage ||
+      msg.message.imageMessage ||
+      msg.message.videoMessage ||
+      msg.message.audioMessage ||
+      msg.message.stickerMessage ||
+      msg.message.documentMessage ||
+      msg.message.contactMessage ||
+      msg.message.contactsArrayMessage ||
+      msg.message.locationMessage ||
+      msg.message.liveLocationMessage ||
+      msg.message.productMessage ||
+      msg.message.templateButtonReplyMessage ||
+      msg.message.buttonsResponseMessage ||
+      msg.message.listResponseMessage
+    );
+
+    if (!isMessages) return;
 
     const text =
       msg.message.conversation ||
