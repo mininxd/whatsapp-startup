@@ -11,5 +11,6 @@ const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
 
 export default function isAdmin(msg) {
   const sender = getSender(msg);
-  return sender === config.admin;
+  const bareSender = sender.split('@')[0];
+  return config.admin.includes(bareSender);
 }
