@@ -29,14 +29,15 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const authFolder = path.join(__dirname, '..', 'auth');
+const credsFile = path.join(authFolder, 'creds.json');
 
 let pairing = false;
 async function startSock(restart = false) {
   const { version } = await fetchLatestBaileysVersion();
   const { state, saveCreds } = await useMultiFileAuthState(authFolder);
 
-  // Asks for the connection method if it is not running after restart and not logged in.
-  if (!restart && !state.creds.registered) {
+  // Asks for the connection method if it is not logged in.
+  if (!credsFile) {
     console.log("1", "Scan QR");
     console.log("2", "Pairing code");
     console.log("0", "Exit");
