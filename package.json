@@ -19,6 +19,8 @@
   },
   "dependencies": {
     "@whiskeysockets/baileys": "^6.7.18",
+    "awesome-phonenumber": "^6.10.0",
+    "input": "^1.0.1",
     "node-cron": "^4.1.0",
     "qrcode-terminal": "^0.12.0"
   }
