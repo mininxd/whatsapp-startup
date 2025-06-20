@@ -1,11 +1,12 @@
 const commands = [
-    "ping"
-    ]
+  "quoted",
+  "reply"
+];
 
 export default async function (sock, msg, text) {
   if (commands.includes(text)) {
     await sock.sendMessage(msg.key.remoteJid, {
-      text: 'Pong!' 
-    });
+      text: 'This is a quoted reply!',
+    }, { quoted: msg });
   }
 }

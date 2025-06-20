@@ -1,5 +1,12 @@
 import { downloadMediaMessage } from '@whiskeysockets/baileys';
 
+const commands = [
+    "s",
+    "sticker",
+    "stiker"
+    ]
+
+
 export default async function (sock, msg) {
   const conversation = msg.message?.conversation;
   const extendedText = msg.message?.extendedTextMessage?.text;
@@ -11,8 +18,8 @@ export default async function (sock, msg) {
   const direct = msg.message?.imageMessage;
 
 
-//.s or .sticker
-  if (text === '.s' || text === '.sticker') {
+// detect if text contains commands (line 3)
+  if (commands.includes(text)) {
     // if replied
     if (quoted) {
       const buffer = await downloadMediaMessage(
@@ -24,7 +31,7 @@ export default async function (sock, msg) {
       await sock.sendMessage(msg.key.remoteJid, {
         sticker: buffer,
       });
-    // if direct ".s" with image
+    // if direct with image
     } else if (direct) {
       const buffer = await downloadMediaMessage(
         msg,

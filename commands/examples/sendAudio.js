@@ -1,11 +1,16 @@
+import fs from 'fs';
+
 const commands = [
-    "ping"
-    ]
+  "audio"
+];
 
 export default async function (sock, msg, text) {
   if (commands.includes(text)) {
+    const audioBuffer = fs.readFileSync('./path/to/audio.mp3');
+
     await sock.sendMessage(msg.key.remoteJid, {
-      text: 'Pong!' 
+      audio: audioBuffer,
+      mimetype: 'audio/mpeg'
     });
   }
 }
