@@ -34,7 +34,7 @@ export function cleanSession() {
     });
   });
   
-cron.schedule('*/30 * * * *', () => {
+cron.schedule('0 */12 * * *', () => {
   console.log('[CRON] Cleaning up auth folder...');
   cleanSession();
 });

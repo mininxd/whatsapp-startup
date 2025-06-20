@@ -3,8 +3,15 @@ import isAdmin from '../../src/helper/isAdmin.js';
 // helper: getSender returns the sender's number (000000@s.whatsapp.net)
 import { getSender } from '../../src/helper/getSender.js';
 
+// command list
+const commands = [
+    "ping-admin",
+    "pingadmin",
+    "testadmin"
+    ]
+
 export default async function (sock, msg, text) {
-  if (text === '.ping-admin') {
+  if (commands.includes(text)) {
     // get actual number by removing @s.whatsapp.net
     const number = getSender(msg).split('@')[0];
     

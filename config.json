@@ -3,5 +3,6 @@
     "62XXXXX",
     "62XXXXX",
     "more admins...."
-    ]
+    ],
+  "prefix": [".", ">","$", "@"]
 }
