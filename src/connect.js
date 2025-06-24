@@ -1,4 +1,5 @@
 import { Boom } from '@hapi/boom';
+import fs from "fs";
 import baileys from '@whiskeysockets/baileys';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -38,7 +39,7 @@ async function startSock(restart = false) {
   const { state, saveCreds } = await useMultiFileAuthState(authFolder);
 
   // If no creds exist, ask user for connection method
-  if (!credsFile) {
+  if (!fs.existsSync(credsFile)) {
     console.log('1', 'Scan QR');
     console.log('2', 'Pairing code');
     console.log('0', 'Exit');
@@ -97,7 +98,7 @@ async function startSock(restart = false) {
       console.log = log;
       console.warn = warn;
       console.error = error;
-      pino.level = process.env.LEVEL || 'silent';
+      pino.level = 'silent';
 
       const code = await sock.requestPairingCode(phone);
       console.log('Click the notification on your Android/iOS device.');
