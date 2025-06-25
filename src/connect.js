@@ -12,8 +12,14 @@ import handleMessages from './handler/messages.js';
 import handleEvents from './handler/events.js';
 import { cleanSession } from './session.js';
 
+
 // Clean old session first
 cleanSession();
+
+// Detect verbose flag
+const verbose = process.argv.includes('-v');
+// Use silent or info logging based on the flag
+const pino = P({ level: verbose ? 'info' : 'silent' });
 
 const {
   default: makeWASocket,
@@ -23,8 +29,6 @@ const {
   Browsers,
   makeCacheableSignalKeyStore
 } = baileys;
-
-const pino = P({ level: 'silent' });
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -98,7 +102,6 @@ async function startSock(restart = false) {
       console.log = log;
       console.warn = warn;
       console.error = error;
-      pino.level = 'silent';
 
       const code = await sock.requestPairingCode(phone);
       console.log('Click the notification on your Android/iOS device.');
