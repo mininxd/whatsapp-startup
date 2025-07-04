@@ -10,7 +10,6 @@
     "type": "git",
     "url": "git+https://github.com/mininxd/whatsapp-startup.git"
   },
-
   "license": "CC0-1.0 license",
   "author": "Mininxd",
   "type": "module",
@@ -18,13 +17,19 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  
   "dependencies": {
     "@whiskeysockets/baileys": "^6.7.18",
     "awesome-phonenumber": "^6.10.0",
+    "axios": "^1.10.0",
+    "chalk": "^5.4.1",
+    "express": "^5.1.0",
     "input": "^1.0.1",
-    "node-cron": "^4.1.0",  
-    "qrcode-terminal": "^0.12.0"
+    "link-preview-js": "^3.1.0",
+    "multer": "^2.0.1",
+    "node-cron": "^4.1.0",
+    "qrcode-terminal": "^0.12.0",
+    "sharp": "^0.32.6",
+    "socket.io": "^4.8.1",
+    "util": "^0.12.5"
   }
 }
-
