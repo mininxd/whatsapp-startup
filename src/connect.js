@@ -14,7 +14,7 @@ import { cleanSession } from './session.js';
 
 
 // Clean old session first
-cleanSession();
+// cleanSession();
 
 // Detect verbose flag
 const verbose = process.argv.includes('-v');

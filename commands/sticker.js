@@ -23,8 +23,10 @@ export default async function (sock, msg) {
     if (commands.some(c => text.toLowerCase().startsWith(c))) {
         let pack, author;
         const parts = text.split(' ').slice(1);
-        pack = parts.join(' ').split('|')[0]?.trim() || 'My Sticker';
-        author = parts.join(' ').split('|')[1]?.trim() || 'My Bot';
+     //   pack = parts.join(' ').split('|')[0]?.trim() || 'My Sticker';
+     pack = null
+     //   author = parts.join(' ').split('|')[1]?.trim() || 'My Bot';
+     author = "mininxd"
 
         const quoted = msg.message?.extendedTextMessage?.contextInfo?.quotedMessage;
         const directMsg = msg.message;
@@ -65,7 +67,7 @@ export default async function (sock, msg) {
 
             await sock.sendMessage(msg.key.remoteJid, await sticker.toMessage());
         } else {
-            await sock.sendMessage(msg.key.remoteJid, { text: 'Send or reply to an image, video, svg, or sticker!' });
+            await sock.sendMessage(msg.key.remoteJid, { text: 'Send or reply to an image, video, or sticker!' });
         }
     }
 }
