@@ -1,4 +1,5 @@
 import { downloadMediaMessage } from '@whiskeysockets/baileys';
+import { Sticker, StickerTypes } from 'wa-sticker-formatter';
 
 const commands = [
     "s",
@@ -8,43 +9,63 @@ const commands = [
 
 
 export default async function (sock, msg) {
-  const conversation = msg.message?.conversation;
-  const extendedText = msg.message?.extendedTextMessage?.text;
-  const imageCaption = msg.message?.imageMessage?.caption;
+    const getMessageContent = (message) => {
+        return message?.conversation ||
+               message?.extendedTextMessage?.text ||
+               message?.imageMessage?.caption ||
+               message?.videoMessage?.caption ||
+               message?.documentMessage?.caption ||
+               '';
+    };
 
-  const text = conversation || extendedText || imageCaption || '';
+    const text = getMessageContent(msg.message);
 
-  const quoted = msg.message?.extendedTextMessage?.contextInfo?.quotedMessage?.imageMessage;
-  const direct = msg.message?.imageMessage;
+    if (commands.some(c => text.toLowerCase().startsWith(c))) {
+        let pack, author;
+        const parts = text.split(' ').slice(1);
+        pack = parts.join(' ').split('|')[0]?.trim() || 'My Sticker';
+        author = parts.join(' ').split('|')[1]?.trim() || 'My Bot';
 
+        const quoted = msg.message?.extendedTextMessage?.contextInfo?.quotedMessage;
+        const directMsg = msg.message;
 
-// detect if text contains commands (line 3)
-  if (commands.includes(text)) {
-    // if replied
-    if (quoted) {
-      const buffer = await downloadMediaMessage(
-        { message: { imageMessage: quoted } },
-        'buffer',
-        {},
-        { reuploadRequest: sock.updateMediaMessage }
-      );
-      await sock.sendMessage(msg.key.remoteJid, {
-        sticker: buffer,
-      });
-    // if direct with image
-    } else if (direct) {
-      const buffer = await downloadMediaMessage(
-        msg,
-        'buffer',
-        {},
-        { reuploadRequest: sock.updateMediaMessage }
-      );
-      await sock.sendMessage(msg.key.remoteJid, {
-        sticker: buffer,
-      })
-      // else no image, send as text
-    } else {
-      await sock.sendMessage(msg.key.remoteJid, { text: 'Send or reply image!' });
+        let buffer;
+        let isVideo = false;
+
+        // Check for direct media
+        if (directMsg?.imageMessage) {
+            buffer = await downloadMediaMessage(msg, 'buffer', {}, { reuploadRequest: sock.updateMediaMessage });
+        } else if (directMsg?.videoMessage) {
+            isVideo = true;
+            buffer = await downloadMediaMessage(msg, 'buffer', {}, { reuploadRequest: sock.updateMediaMessage });
+        } else if (directMsg?.stickerMessage) {
+            buffer = await downloadMediaMessage(msg, 'buffer', {}, { reuploadRequest: sock.updateMediaMessage });
+        } else if (directMsg?.documentMessage && directMsg.documentMessage.mimetype === 'image/svg+xml') {
+            buffer = await downloadMediaMessage(msg, 'buffer', {}, { reuploadRequest: sock.updateMediaMessage });
+        }
+        // Check for quoted media
+        else if (quoted?.imageMessage) {
+            buffer = await downloadMediaMessage({ message: { imageMessage: quoted.imageMessage } }, 'buffer', {}, { reuploadRequest: sock.updateMediaMessage });
+        } else if (quoted?.videoMessage) {
+            isVideo = true;
+            buffer = await downloadMediaMessage({ message: { videoMessage: quoted.videoMessage } }, 'buffer', {}, { reuploadRequest: sock.updateMediaMessage });
+        } else if (quoted?.stickerMessage) {
+            buffer = await downloadMediaMessage({ message: { stickerMessage: quoted.stickerMessage } }, 'buffer', {}, { reuploadRequest: sock.updateMediaMessage });
+        } else if (quoted?.documentMessage && quoted.documentMessage.mimetype === 'image/svg+xml') {
+            buffer = await downloadMediaMessage({ message: { documentMessage: quoted.documentMessage } }, 'buffer', {}, { reuploadRequest: sock.updateMediaMessage });
+        }
+
+        if (buffer) {
+            const sticker = new Sticker(buffer, {
+                pack: pack,
+                author: author,
+                type: isVideo ? StickerTypes.FULL : StickerTypes.DEFAULT,
+                quality: 50
+            });
+
+            await sock.sendMessage(msg.key.remoteJid, await sticker.toMessage());
+        } else {
+            await sock.sendMessage(msg.key.remoteJid, { text: 'Send or reply to an image, video, svg, or sticker!' });
+        }
     }
-  }
 }
