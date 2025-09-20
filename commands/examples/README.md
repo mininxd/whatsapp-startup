@@ -1,1 +1,0 @@
-### These are multiple examples showing the core usage of Baileys.
