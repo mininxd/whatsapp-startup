@@ -1,44 +1,66 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import axios from 'axios';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const configPath = path.join(__dirname, '../../config.json');
-const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+const configPath = path.resolve(__dirname, '../../config.json');
+const config = JSON.parse(await fs.promises.readFile(configPath, 'utf-8'));
 const prefixes = config.prefix;
 
-const commandsDir = path.join(__dirname, '../../commands');
+const commandsDir = path.resolve(__dirname, '../../commands');
+const noPrefixDir = path.join(commandsDir, 'noPrefix');
 
-function getAllCommandFiles(dir) {
-  let files = [];
-  for (const file of fs.readdirSync(dir)) {
+// Recursive file finder
+async function getAllCommandFiles(dir) {
+  const files = await fs.promises.readdir(dir);
+  const all = [];
+
+  for (const file of files) {
     const fullPath = path.join(dir, file);
-    if (fs.statSync(fullPath).isDirectory()) {
-      files = files.concat(getAllCommandFiles(fullPath));
+    const stat = await fs.promises.stat(fullPath);
+
+    if (stat.isDirectory()) {
+      all.push(...await getAllCommandFiles(fullPath));
     } else if (file.endsWith('.js')) {
-      files.push(fullPath);
+      all.push(fullPath);
     }
   }
-  return files;
+  return all;
 }
 
-const handlers = [];
-for (const file of getAllCommandFiles(commandsDir)) {
+// Load handlers
+const prefixHandlers = [];
+const noPrefixHandlers = [];
+
+// Load normal prefix commands
+for (const file of await getAllCommandFiles(commandsDir)) {
+  if (file.includes('/noPrefix/')) continue; // Skip noPrefix folder
   const { default: handler } = await import(file);
-  handlers.push(handler);
+  prefixHandlers.push(handler);
 }
 
+// Load noPrefix commands
+for (const file of await getAllCommandFiles(noPrefixDir)) {
+  const { default: handler } = await import(file);
+  noPrefixHandlers.push(handler);
+}
+
+// Extract text from message
 function extractText(msg) {
-  if (msg.message.conversation) return msg.message.conversation;
-  if (msg.message.extendedTextMessage?.text) return msg.message.extendedTextMessage.text;
-  if (msg.message.imageMessage?.caption) return msg.message.imageMessage.caption;
-  if (msg.message.videoMessage?.caption) return msg.message.videoMessage.caption;
-  if (msg.message.documentMessage?.caption) return msg.message.documentMessage.caption;
-  if (msg.message.buttonsResponseMessage?.selectedButtonId) return msg.message.buttonsResponseMessage.selectedButtonId;
-  if (msg.message.listResponseMessage?.singleSelectReply?.selectedRowId) return msg.message.listResponseMessage.singleSelectReply.selectedRowId;
-  return '';
+  const m = msg?.message || {};
+  return (
+    m.conversation ||
+    m.extendedTextMessage?.text ||
+    m.imageMessage?.caption ||
+    m.videoMessage?.caption ||
+    m.documentMessage?.caption ||
+    m.buttonsResponseMessage?.selectedButtonId ||
+    m.listResponseMessage?.singleSelectReply?.selectedRowId ||
+    ''
+  );
 }
 
 export default function handleMessages(sock) {
@@ -48,7 +70,7 @@ export default function handleMessages(sock) {
     const msg = messages[0];
     if (!msg?.message) return;
 
-    const isMessages = !!(
+    const hasMessageContent = Boolean(
       msg.message.conversation ||
       msg.message.extendedTextMessage ||
       msg.message.imageMessage ||
@@ -66,17 +88,28 @@ export default function handleMessages(sock) {
       msg.message.listResponseMessage
     );
 
-    if (!isMessages) return;
+    if (!hasMessageContent) return;
 
-    let rawText = extractText(msg);
-    if (typeof rawText !== 'string' || rawText.length === 0) return;
+    const rawText = extractText(msg);
+    if (!rawText || typeof rawText !== 'string') return;
 
+    // ================
+    // Run noPrefix handlers (always run)
+    // ================
+    for (const handler of noPrefixHandlers) {
+      await handler(sock, msg, rawText);
+    }
+
+    // ================
+    // Then check for prefix-based commands
+    // ================
     const usedPrefix = prefixes.find(p => rawText.startsWith(p));
     if (!usedPrefix) return;
 
     const text = rawText.slice(usedPrefix.length).trim();
+    if (!text) return;
 
-    for (const handler of handlers) {
+    for (const handler of prefixHandlers) {
       await handler(sock, msg, text);
     }
   });
