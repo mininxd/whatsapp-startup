@@ -1,6 +1,6 @@
 import { Boom } from '@hapi/boom';
 import fs from "fs";
-import baileys from '@whiskeysockets/baileys';
+import makeWASocket, { useMultiFileAuthState, DisconnectReason, Browsers, makeCacheableSignalKeyStore } from '@whiskeysockets/baileys';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import qrcode from 'qrcode-terminal';
@@ -21,15 +21,6 @@ const verbose = process.argv.includes('-v');
 // Use silent or info logging based on the flag
 const pino = P({ level: verbose ? 'info' : 'silent' });
 
-const {
-  default: makeWASocket,
-  useMultiFileAuthState,
-  DisconnectReason,
-  fetchLatestBaileysVersion,
-  Browsers,
-  makeCacheableSignalKeyStore
-} = baileys;
-
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -39,7 +30,6 @@ const credsFile = path.join(authFolder, 'creds.json');
 let pairing = false;
 
 async function startSock(restart = false) {
-  const { version } = await fetchLatestBaileysVersion();
   const { state, saveCreds } = await useMultiFileAuthState(authFolder);
 
   // If no creds exist, ask user for connection method
@@ -63,7 +53,6 @@ async function startSock(restart = false) {
   }
 
   const sock = makeWASocket({
-    version,
     auth: {
       creds: state.creds,
       keys: makeCacheableSignalKeyStore(state.keys, pino)

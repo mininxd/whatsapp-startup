@@ -18,13 +18,12 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  
+
   "dependencies": {
-    "@whiskeysockets/baileys": "^6.7.18",
+    "@whiskeysockets/baileys": "7.0.0-rc.3",
     "awesome-phonenumber": "^6.10.0",
     "input": "^1.0.1",
-    "node-cron": "^4.1.0",  
+    "node-cron": "^4.1.0",
     "qrcode-terminal": "^0.12.0"
   }
 }
-
