@@ -5,6 +5,7 @@ import { fileURLToPath } from 'url';
 import express from 'express';
 import { createServer } from 'http';
 import { Server as SocketIOServer } from 'socket.io';
+import cors from "cors";
 import qrcode from 'qrcode-terminal';
 import input from 'input';
 import ph from 'awesome-phonenumber';
@@ -26,6 +27,7 @@ const pino = P({ level: verbose ? 'info' : 'silent' });
 
 // Express + Socket.IO setup
 const app = express();
+app.use(cors());
 const httpServer = createServer(app);
 const io = new SocketIOServer(httpServer, { cors: { origin: '*' } });
 

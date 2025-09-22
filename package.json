@@ -22,6 +22,7 @@
     "awesome-phonenumber": "^6.10.0",
     "axios": "^1.10.0",
     "chalk": "^5.4.1",
+    "cors": "^2.8.5",
     "express": "^5.1.0",
     "input": "^1.0.1",
     "link-preview-js": "^3.1.0",
