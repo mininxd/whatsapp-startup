@@ -12,8 +12,6 @@ export default async function (sock, msg, text) {
         message: text
       });
       console.log(data);
-    } catch (error) {
-      console.error(`Webhook error for JID ${jid}:`, error.code);
-    }
+    } catch (error) {}
   }
 }
