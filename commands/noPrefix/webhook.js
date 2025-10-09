@@ -6,10 +6,14 @@ export default async function (sock, msg, text) {
   
   // only accept normal chats
   if (!fromMe && !jid.includes("status@broadcast")) {
-  const { data } = await axios.post('http://localhost:5678/webhook/whatsapp', {
-    jid: msg.key.remoteJid,
-    message: text
-  });
-  console.log(data);
+    try {
+      const { data } = await axios.post('http://localhost:5678/webhook/whatsapp', {
+        jid: msg.key.remoteJid,
+        message: text
+      });
+      console.log(data);
+    } catch (error) {
+      console.error(`Webhook error for JID ${jid}:`, error.code);
+    }
   }
 }
