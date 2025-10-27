@@ -12,13 +12,7 @@ import handleMessages from './handler/messages.js';
 import handleEvents from './handler/events.js';
 import { cleanSession } from './session.js';
 
-
-// Clean old session first
-// cleanSession();
-
-// Detect verbose flag
 const verbose = process.argv.includes('-v');
-// Use silent or info logging based on the flag
 const pino = P({ level: verbose ? 'info' : 'silent' });
 
 const __filename = fileURLToPath(import.meta.url);
@@ -32,12 +26,7 @@ let pairing = false;
 async function startSock(restart = false) {
   const { state, saveCreds } = await useMultiFileAuthState(authFolder);
 
-  // If no creds exist, ask user for connection method
   if (!fs.existsSync(credsFile)) {
-    console.log('1', 'Scan QR');
-    console.log('2', 'Pairing code');
-    console.log('0', 'Exit');
-
     const select = await input.select('Select one', [
       { name: 'Scan QR', value: 1 },
       { name: 'Pairing code', value: 2 },
@@ -46,10 +35,7 @@ async function startSock(restart = false) {
 
     pairing = select === 2;
 
-    if (select === 0) {
-      console.log('Canceled! Exiting...');
-      process.exit(0);
-    }
+    if (select === 0) process.exit(0);
   }
 
   const sock = makeWASocket({
@@ -64,93 +50,64 @@ async function startSock(restart = false) {
 
   sock.ev.on('creds.update', saveCreds);
 
+  const keepAliveInterval = setInterval(async () => {
+    try {
+      await sock.sendPresenceUpdate('available');
+    } catch (e) {
+      console.log('Keep-alive ping failed', e.message || e);
+    }
+  }, 60000);
+
   sock.ev.on('connection.update', async ({ connection, lastDisconnect, qr, receivedPendingNotifications }) => {
     if (receivedPendingNotifications) sock.ev.flush();
 
     if (qr && !pairing) {
       qrcode.generate(qr, { small: true });
-      console.log('Open WhatsApp, then click the three dots > Linked devices > Link a device > Scan the QR code.');
-    }
-
-    if (qr && pairing) {
-      // Temporarily silence logs
-      const { log, warn, error } = console;
-      console.log = console.warn = console.error = () => {};
-      pino.level = 'silent';
-
-      const phoneInput = await input.text('Phone number (with country code):', {
-        validate(input) {
-          if (!input) return 'Phone number is required!';
-          if (!ph(input)?.g?.number?.e164) return 'Invalid number! Use the country code.';
-          return true;
-        }
-      });
-
-      const phone = ph(phoneInput).g.number.e164.slice(1);
-
-      console.log = log;
-      console.warn = warn;
-      console.error = error;
-
-      const code = await sock.requestPairingCode(phone);
-      console.log('Click the notification on your Android/iOS device.');
-      console.log('If not, open WhatsApp > Linked devices > Link with phone number and enter this code:');
-      console.log('[PAIRING] Code:', code?.match(/.{1,4}/g)?.join('-') || code);
+      console.log('Scan QR in WhatsApp > Linked devices > Link a device.');
     }
 
     if (connection === 'close') {
-  const reason = new Boom(lastDisconnect?.error)?.output.statusCode;
+      const reason = new Boom(lastDisconnect?.error)?.output.statusCode;
 
-  switch (reason) {
-    case DisconnectReason.badSession:
-      console.log('Corrupt session file, delete it and rescan.');
-      // Optionally, you can clean and restart automatically:
-      // cleanSession();
-      // await startSock(true);
-      break;
+      switch (reason) {
+        case DisconnectReason.badSession:
+          console.log('Corrupt session file. Delete it and rescan.');
+          clearInterval(keepAliveInterval);
+          await startSock(true);
+          break;
 
-    case DisconnectReason.connectionClosed:
-    case DisconnectReason.connectionLost:
-    case DisconnectReason.restartRequired:
-    case DisconnectReason.timedOut:
-      console.log('Connection issue, reconnecting...');
-      // Make sure the old socket is properly closed before restarting
-      try {
-        if (sock.ws) sock.ws.close();
-      } catch { /* ignore if already closed */ }
+        case DisconnectReason.connectionClosed:
+        case DisconnectReason.connectionLost:
+        case DisconnectReason.restartRequired:
+        case DisconnectReason.timedOut:
+        case 503:
+          console.log('Connection lost (possibly idle), reconnecting...');
+          try { if (sock.ws) sock.ws.close(); } catch {}
+          clearInterval(keepAliveInterval);
+          setTimeout(() => startSock(true), 3000);
+          return;
 
-      // Restart without exiting process
-      setTimeout(() => startSock(true), 3000); // 3s delay for stability
-      return; // Stop here so it doesn’t reach process.exit()
-      
-    case DisconnectReason.connectionReplaced:
-      console.log('Connection replaced by another session. Stop other sessions to reconnect.');
-      break;
+        case DisconnectReason.connectionReplaced:
+          console.log('Connection replaced by another session. Stop other sessions to reconnect.');
+          break;
 
-    case DisconnectReason.loggedOut:
-      console.log('Device logged out. Exiting...');
-      process.exit(0); // Exit only if explicitly logged out
-      break;
+        case DisconnectReason.loggedOut:
+          console.log('Device logged out. Exiting...');
+          clearInterval(keepAliveInterval);
+          process.exit(0);
+          break;
 
-    case DisconnectReason.multideviceMismatch:
-      console.log('Multi-device mismatch. Please rescan.');
-      break;
+        case DisconnectReason.multideviceMismatch:
+          console.log('Multi-device mismatch. Please rescan.');
+          break;
 
-    default:
-      console.log('Unknown reason:', reason);
-  }
+        default:
+          console.log('Unknown disconnect reason:', reason);
+      }
+    }
 
-  // Remove process.exit(1) here — it kills reconnection
-}
-
-if (connection === 'connecting') {
-  console.log('Connecting...');
-}
-
-if (connection === 'open') {
-  console.log('Connected successfully!');
-  console.log();
-}
+    if (connection === 'connecting') console.log('Connecting...');
+    if (connection === 'open') console.log('Connected successfully!\n');
   });
 
   handleMessages(sock);
