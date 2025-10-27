@@ -99,43 +99,58 @@ async function startSock(restart = false) {
     }
 
     if (connection === 'close') {
-      const reason = new Boom(lastDisconnect?.error)?.output.statusCode;
+  const reason = new Boom(lastDisconnect?.error)?.output.statusCode;
 
-      switch (reason) {
-        case DisconnectReason.badSession:
-          console.log('Corrupt session file, delete it and rescan.');
-          break;
-        case DisconnectReason.connectionClosed:
-        case DisconnectReason.connectionLost:
-        case DisconnectReason.restartRequired:
-        case DisconnectReason.timedOut:
-          console.log('Connection issue, reconnecting...');
-          await startSock(true);
-          break;
-        case DisconnectReason.connectionReplaced:
-          console.log('Connection replaced by another session. Stop other sessions to reconnect.');
-          break;
-        case DisconnectReason.loggedOut:
-          console.log('Device logged out. Exiting...');
-          break;
-        case DisconnectReason.multideviceMismatch:
-          console.log('Multi-device mismatch. Please rescan.');
-          break;
-        default:
-          console.log('Unknown reason:', reason);
-      }
+  switch (reason) {
+    case DisconnectReason.badSession:
+      console.log('Corrupt session file, delete it and rescan.');
+      // Optionally, you can clean and restart automatically:
+      // cleanSession();
+      // await startSock(true);
+      break;
 
-      process.exit(1);
-    }
+    case DisconnectReason.connectionClosed:
+    case DisconnectReason.connectionLost:
+    case DisconnectReason.restartRequired:
+    case DisconnectReason.timedOut:
+      console.log('Connection issue, reconnecting...');
+      // Make sure the old socket is properly closed before restarting
+      try {
+        if (sock.ws) sock.ws.close();
+      } catch { /* ignore if already closed */ }
 
-    if (connection === 'connecting') {
-      console.log('Connecting...');
-    }
+      // Restart without exiting process
+      setTimeout(() => startSock(true), 3000); // 3s delay for stability
+      return; // Stop here so it doesn’t reach process.exit()
+      
+    case DisconnectReason.connectionReplaced:
+      console.log('Connection replaced by another session. Stop other sessions to reconnect.');
+      break;
 
-    if (connection === 'open') {
-      console.log('Connected successfully!');
-      console.log();
-    }
+    case DisconnectReason.loggedOut:
+      console.log('Device logged out. Exiting...');
+      process.exit(0); // Exit only if explicitly logged out
+      break;
+
+    case DisconnectReason.multideviceMismatch:
+      console.log('Multi-device mismatch. Please rescan.');
+      break;
+
+    default:
+      console.log('Unknown reason:', reason);
+  }
+
+  // Remove process.exit(1) here — it kills reconnection
+}
+
+if (connection === 'connecting') {
+  console.log('Connecting...');
+}
+
+if (connection === 'open') {
+  console.log('Connected successfully!');
+  console.log();
+}
   });
 
   handleMessages(sock);
