@@ -22,6 +22,7 @@ const authFolder = path.join(__dirname, '..', 'auth');
 const credsFile = path.join(authFolder, 'creds.json');
 
 let pairing = false;
+let reconnectDelay = 3000; // Initial delay: 3 seconds
 
 async function startSock() {
   while (true) { // Infinite reconnect loop
@@ -38,6 +39,8 @@ async function startSock() {
 
         pairing = select === 2;
         if (select === 0) process.exit(0);
+      } else {
+        pairing = false;
       }
 
       const sock = makeWASocket({
@@ -55,7 +58,7 @@ async function startSock() {
       const keepAliveInterval = setInterval(async () => {
         try { await sock.sendPresenceUpdate('available'); }
         catch (e) { console.log('Keep-alive failed:', e.message || e); }
-      }, 60000);
+      }, 600000);
 
       sock.ev.on('connection.update', async ({ connection, lastDisconnect, qr, receivedPendingNotifications }) => {
         if (receivedPendingNotifications) sock.ev.flush();
@@ -102,10 +105,13 @@ async function startSock() {
             case DisconnectReason.connectionLost:
             case DisconnectReason.restartRequired:
             case DisconnectReason.timedOut:
-            case 503:
+            case 408: // Request Timeout
+            case 428: // Precondition Required
+            case 440: // Login Timeout
+            case 503: // Service Unavailable
             case DisconnectReason.connectionReplaced:
             case DisconnectReason.multideviceMismatch:
-              console.log('Reconnecting in 3s...');
+              console.log(`Reconnecting in ${reconnectDelay / 1000}s...`);
               break;
 
             case DisconnectReason.loggedOut:
@@ -117,11 +123,15 @@ async function startSock() {
               console.log('Unknown reason. Retrying...');
           }
 
-          await new Promise(resolve => setTimeout(resolve, 3000));
+          await new Promise(resolve => setTimeout(resolve, reconnectDelay));
+          reconnectDelay = Math.min(reconnectDelay * 2, 60000); // Exponential backoff
         }
 
         if (connection === 'connecting') console.log('Connecting...');
-        if (connection === 'open') console.log('Connected successfully!\n');
+        if (connection === 'open') {
+          console.log('Connected successfully!\n');
+          reconnectDelay = 3000; // Reset delay on successful connection
+        }
       });
 
       handleMessages(sock);
@@ -134,8 +144,9 @@ async function startSock() {
 
     } catch (err) {
       console.error('Unexpected error:', err);
-      console.log('Restarting socket in 5s...');
-      await new Promise(resolve => setTimeout(resolve, 5000));
+      console.log(`Restarting socket in ${reconnectDelay / 1000}s...`);
+      await new Promise(resolve => setTimeout(resolve, reconnectDelay));
+      reconnectDelay = Math.min(reconnectDelay * 2, 60000); // Exponential backoff
     }
   }
 }

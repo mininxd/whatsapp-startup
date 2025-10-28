@@ -16,11 +16,11 @@ function start(file) {
   })
   .on('error', (e) => {
       console.error(e);
-      fs.watchFile(args[0], () => {
-        start(file);
-        fs.unwatchFile(args[0]);
-      });
-    })
+  })
+  .on('exit', () => {
+    console.log('Process exited, restarting...');
+    start(file);
+  });
   }
 
 start('./src/connect.js');

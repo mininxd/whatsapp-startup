@@ -97,7 +97,11 @@ export default function handleMessages(sock) {
     // Run noPrefix handlers (always run)
     // ================
     for (const handler of noPrefixHandlers) {
-      await handler(sock, msg, rawText);
+      try {
+        await handler(sock, msg, rawText);
+      } catch (e) {
+        console.error('noPrefix handler failed:', e);
+      }
     }
 
     // ================
@@ -110,7 +114,11 @@ export default function handleMessages(sock) {
     if (!text) return;
 
     for (const handler of prefixHandlers) {
-      await handler(sock, msg, text);
+      try {
+        await handler(sock, msg, text);
+      } catch (e) {
+        console.error('Prefix handler failed:', e);
+      }
     }
   });
 }
