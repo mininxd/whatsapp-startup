@@ -1,54 +1,45 @@
+/**
+ * File ini bertanggung jawab untuk menangani pesan yang masuk.
+ * Fungsinya adalah memuat semua handler perintah dari direktori 'commands',
+ * membedakan antara perintah dengan dan tanpa awalan (prefix),
+ * dan kemudian menjalankan handler yang sesuai berdasarkan konten pesan.
+ * 
+ * This file is responsible for handling incoming messages.
+ * It loads all the command handlers from the 'commands' directory,
+ * distinguishes between commands with and without prefixes,
+ * and then executes the appropriate handler based on the message content.
+ */
+
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import axios from 'axios';
+import { loadCommands } from '../loader.js';
 
+// Mendapatkan nama file dan direktori saat ini.
+// Get the current filename and directory name.
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// Memuat konfigurasi dari file config.json.
+// Load configuration from the config.json file.
 const configPath = path.resolve(__dirname, '../../config.json');
 const config = JSON.parse(await fs.promises.readFile(configPath, 'utf-8'));
 const prefixes = config.prefix;
 
-const commandsDir = path.resolve(__dirname, '../../commands');
-const noPrefixDir = path.join(commandsDir, 'noPrefix');
+// Memuat semua handler perintah.
+// Load all command handlers.
+const { prefixHandlers, noPrefixHandlers } = await loadCommands();
 
-// Recursive file finder
-async function getAllCommandFiles(dir) {
-  const files = await fs.promises.readdir(dir);
-  const all = [];
-
-  for (const file of files) {
-    const fullPath = path.join(dir, file);
-    const stat = await fs.promises.stat(fullPath);
-
-    if (stat.isDirectory()) {
-      all.push(...await getAllCommandFiles(fullPath));
-    } else if (file.endsWith('.js')) {
-      all.push(fullPath);
-    }
-  }
-  return all;
-}
-
-// Load handlers
-const prefixHandlers = [];
-const noPrefixHandlers = [];
-
-// Load normal prefix commands
-for (const file of await getAllCommandFiles(commandsDir)) {
-  if (file.includes('/noPrefix/')) continue; // Skip noPrefix folder
-  const { default: handler } = await import(file);
-  prefixHandlers.push(handler);
-}
-
-// Load noPrefix commands
-for (const file of await getAllCommandFiles(noPrefixDir)) {
-  const { default: handler } = await import(file);
-  noPrefixHandlers.push(handler);
-}
-
-// Extract text from message
+/**
+ * Fungsi untuk mengekstrak teks dari pesan.
+ * @param {object} msg - Objek pesan.
+ * @returns {string} - Teks dari pesan.
+ * 
+ * Function to extract text from a message.
+ * @param {object} msg - The message object.
+ * @returns {string} - The text from the message.
+ */
 function extractText(msg) {
   const m = msg?.message || {};
   return (
@@ -63,6 +54,13 @@ function extractText(msg) {
   );
 }
 
+/**
+ * Fungsi utama untuk menangani pesan yang masuk.
+ * @param {object} sock - Instance socket WhatsApp.
+ * 
+ * Main function to handle incoming messages.
+ * @param {object} sock - The WhatsApp socket instance.
+ */
 export default function handleMessages(sock) {
   sock.ev.removeAllListeners('messages.upsert');
 
@@ -70,6 +68,8 @@ export default function handleMessages(sock) {
     const msg = messages[0];
     if (!msg?.message) return;
 
+    // Memeriksa apakah pesan memiliki konten yang dapat diproses.
+    // Check if the message has processable content.
     const hasMessageContent = Boolean(
       msg.message.conversation ||
       msg.message.extendedTextMessage ||
@@ -94,7 +94,8 @@ export default function handleMessages(sock) {
     if (!rawText || typeof rawText !== 'string') return;
 
     // ================
-    // Run noPrefix handlers (always run)
+    // Menjalankan handler tanpa awalan (noPrefix).
+    // Run noPrefix handlers.
     // ================
     for (const handler of noPrefixHandlers) {
       try {
@@ -105,7 +106,8 @@ export default function handleMessages(sock) {
     }
 
     // ================
-    // Then check for prefix-based commands
+    // Memeriksa dan menjalankan perintah dengan awalan (prefix).
+    // Check for and run prefix-based commands.
     // ================
     const usedPrefix = prefixes.find(p => rawText.startsWith(p));
     if (!usedPrefix) return;
