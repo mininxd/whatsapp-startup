@@ -23,95 +23,121 @@ const credsFile = path.join(authFolder, 'creds.json');
 
 let pairing = false;
 
-async function startSock(restart = false) {
-  const { state, saveCreds } = await useMultiFileAuthState(authFolder);
-
-  if (!fs.existsSync(credsFile)) {
-    const select = await input.select('Select one', [
-      { name: 'Scan QR', value: 1 },
-      { name: 'Pairing code', value: 2 },
-      { name: 'Exit', value: 0 }
-    ], { default: 1 });
-
-    pairing = select === 2;
-
-    if (select === 0) process.exit(0);
-  }
-
-  const sock = makeWASocket({
-    auth: {
-      creds: state.creds,
-      keys: makeCacheableSignalKeyStore(state.keys, pino)
-    },
-    logger: pino,
-    getMessage: null,
-    browser: Browsers.windows('Chrome')
-  });
-
-  sock.ev.on('creds.update', saveCreds);
-
-  const keepAliveInterval = setInterval(async () => {
+async function startSock() {
+  while (true) { // Infinite reconnect loop
     try {
-      await sock.sendPresenceUpdate('available');
-    } catch (e) {
-      console.log('Keep-alive ping failed', e.message || e);
-    }
-  }, 60000);
+      const { state, saveCreds } = await useMultiFileAuthState(authFolder);
 
-  sock.ev.on('connection.update', async ({ connection, lastDisconnect, qr, receivedPendingNotifications }) => {
-    if (receivedPendingNotifications) sock.ev.flush();
+      // Ask user if no creds
+      if (!fs.existsSync(credsFile)) {
+        const select = await input.select('Select one', [
+          { name: 'Scan QR', value: 1 },
+          { name: 'Pairing code', value: 2 },
+          { name: 'Exit', value: 0 }
+        ], { default: 1 });
 
-    if (qr && !pairing) {
-      qrcode.generate(qr, { small: true });
-      console.log('Scan QR in WhatsApp > Linked devices > Link a device.');
-    }
-
-    if (connection === 'close') {
-      const reason = new Boom(lastDisconnect?.error)?.output.statusCode;
-
-      switch (reason) {
-        case DisconnectReason.badSession:
-          console.log('Corrupt session file. Delete it and rescan.');
-          clearInterval(keepAliveInterval);
-          await startSock(true);
-          break;
-
-        case DisconnectReason.connectionClosed:
-        case DisconnectReason.connectionLost:
-        case DisconnectReason.restartRequired:
-        case DisconnectReason.timedOut:
-        case 503:
-          console.log('Connection lost (possibly idle), reconnecting...');
-          try { if (sock.ws) sock.ws.close(); } catch {}
-          clearInterval(keepAliveInterval);
-          setTimeout(() => startSock(true), 3000);
-          return;
-
-        case DisconnectReason.connectionReplaced:
-          console.log('Connection replaced by another session. Stop other sessions to reconnect.');
-          break;
-
-        case DisconnectReason.loggedOut:
-          console.log('Device logged out. Exiting...');
-          clearInterval(keepAliveInterval);
-          process.exit(0);
-          break;
-
-        case DisconnectReason.multideviceMismatch:
-          console.log('Multi-device mismatch. Please rescan.');
-          break;
-
-        default:
-          console.log('Unknown disconnect reason:', reason);
+        pairing = select === 2;
+        if (select === 0) process.exit(0);
       }
+
+      const sock = makeWASocket({
+        auth: {
+          creds: state.creds,
+          keys: makeCacheableSignalKeyStore(state.keys, pino)
+        },
+        logger: pino,
+        getMessage: null,
+        browser: Browsers.windows('Chrome')
+      });
+
+      sock.ev.on('creds.update', saveCreds);
+
+      const keepAliveInterval = setInterval(async () => {
+        try { await sock.sendPresenceUpdate('available'); }
+        catch (e) { console.log('Keep-alive failed:', e.message || e); }
+      }, 60000);
+
+      sock.ev.on('connection.update', async ({ connection, lastDisconnect, qr, receivedPendingNotifications }) => {
+        if (receivedPendingNotifications) sock.ev.flush();
+
+        if (qr && !pairing) {
+          qrcode.generate(qr, { small: true });
+          console.log('Scan QR in WhatsApp > Linked devices > Link a device.');
+        }
+
+        if (qr && pairing) {
+          const { log, warn, error } = console;
+          console.log = console.warn = console.error = () => {};
+          pino.level = 'silent';
+
+          const phoneInput = await input.text('Phone number (with country code):', {
+            validate(input) {
+              if (!input) return 'Phone number required!';
+              if (!ph(input)?.g?.number?.e164) return 'Invalid number! Include country code.';
+              return true;
+            }
+          });
+
+          const phone = ph(phoneInput).g.number.e164.slice(1);
+
+          console.log = log; console.warn = warn; console.error = error;
+
+          const code = await sock.requestPairingCode(phone);
+          console.log('Click the notification on your device, or enter this code:');
+          console.log('[PAIRING]', code?.match(/.{1,4}/g)?.join('-') || code);
+        }
+
+        if (connection === 'close') {
+          clearInterval(keepAliveInterval);
+          const reason = new Boom(lastDisconnect?.error)?.output.statusCode;
+          console.log('Disconnected. Reason:', reason);
+
+          switch (reason) {
+            case DisconnectReason.badSession:
+              console.log('Bad session, cleaning...');
+              cleanSession();
+              break;
+
+            case DisconnectReason.connectionClosed:
+            case DisconnectReason.connectionLost:
+            case DisconnectReason.restartRequired:
+            case DisconnectReason.timedOut:
+            case 503:
+            case DisconnectReason.connectionReplaced:
+            case DisconnectReason.multideviceMismatch:
+              console.log('Reconnecting in 3s...');
+              break;
+
+            case DisconnectReason.loggedOut:
+              console.log('Device logged out. Cleaning session...');
+              cleanSession();
+              break;
+
+            default:
+              console.log('Unknown reason. Retrying...');
+          }
+
+          await new Promise(resolve => setTimeout(resolve, 3000));
+        }
+
+        if (connection === 'connecting') console.log('Connecting...');
+        if (connection === 'open') console.log('Connected successfully!\n');
+      });
+
+      handleMessages(sock);
+      handleEvents(sock);
+
+      // Wait until socket closes, then loop retries automatically
+      await new Promise(resolve => sock.ev.on('connection.update', ({ connection }) => {
+        if (connection === 'close') resolve();
+      }));
+
+    } catch (err) {
+      console.error('Unexpected error:', err);
+      console.log('Restarting socket in 5s...');
+      await new Promise(resolve => setTimeout(resolve, 5000));
     }
-
-    if (connection === 'connecting') console.log('Connecting...');
-    if (connection === 'open') console.log('Connected successfully!\n');
-  });
-
-  handleMessages(sock);
-  handleEvents(sock);
+  }
 }
 
 startSock();
